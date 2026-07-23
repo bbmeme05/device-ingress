@@ -28,14 +28,16 @@ spec:
         doks.digitalocean.com/node-pool: ddj-pool-10262
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                      - device-ingress
-              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - device-ingress
+                topologyKey: kubernetes.io/hostname
       terminationGracePeriodSeconds: 15
       containers:
         - name: device-ingress
@@ -114,3 +116,51 @@ spec:
       port: 80
       targetPort: http
       protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: device-ingress
+  namespace: ddj10262
+  labels:
+    app: device-ingress
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: device-ingress
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: ContainerResource
+      containerResource:
+        name: cpu
+        container: device-ingress
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: ContainerResource
+      containerResource:
+        name: memory
+        container: device-ingress
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
