@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package queuebridge;
+
+option go_package = "github.com/bbmeme05/device-ingress/internal/queuebridgepb";
+
+service QueueBridgeBalancer {
+  rpc Push(QueueMessage) returns (EmptyResponse);
+  rpc PushBatch(PushBatchRequest) returns (EmptyResponse);
+}
+
+message EmptyResponse {}
+
+message QueueMessage {
+  string queue_id = 1;
+  bytes message = 2;
+}
+
+message PushBatchRequest {
+  repeated QueueMessage messages = 1;
+}

@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: device-ingress
+  namespace: ddj10262
+  labels:
+    app: device-ingress
+spec:
+  replicas: 2
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: device-ingress
+  template:
+    metadata:
+      labels:
+        app: device-ingress
+        metrics: device-ingress
+    spec:
+      imagePullSecrets:
+        - name: ghcr-ttuanloan
+      nodeSelector:
+        doks.digitalocean.com/node-pool: ddj-pool-10262
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - device-ingress
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: device-ingress
+          image: ghcr.io/bbmeme05/device-ingress:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: QUEUE_BRIDGE_ADDR
+              value: queue-bridge:50051
+            - name: QUEUE_TOPIC
+              value: device
+            - name: MAX_BODY_BYTES
+              value: "1048576"
+            - name: QUEUE_DEPTH
+              value: "32768"
+            - name: BATCH_SIZE
+              value: "500"
+            - name: BATCH_WAIT
+              value: 2ms
+            - name: PUSH_WORKERS
+              value: "4"
+            - name: PUSH_TIMEOUT
+              value: 2s
+            - name: PUSH_RETRIES
+              value: "2"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 12
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: device-ingress-public
+  namespace: ddj10262
+  labels:
+    app: device-ingress
+spec:
+  type: LoadBalancer
+  selector:
+    app: device-ingress
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

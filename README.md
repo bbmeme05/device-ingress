@@ -14,15 +14,7 @@ HTTP OpenRTB -> device-ingress -> queue-bridge topic=device
 
 The request body is a single OpenRTB JSON BidRequest. `Content-Type: application/json` and `application/openrtb+json` are accepted. Gzip request bodies are supported with `Content-Encoding: gzip`; a gzip body without that header is also detected from its `1f 8b` magic bytes for upstream compatibility.
 
-Successful authentication always returns `204 No Content` with an empty body. Invalid JSON, invalid device fields, missing Android IFA, a full ingress queue, and asynchronous Queue Bridge delivery failures are exposed through logs and `/metrics`, not the HTTP response.
-
-The endpoint requires:
-
-```text
-Authorization: Bearer <INGRESS_AUTH_TOKEN>
-```
-
-Unauthenticated requests receive `401` and are not parsed or queued.
+Every request returns `204 No Content` with an empty body. Invalid JSON, invalid device fields, missing Android IFA, a full ingress queue, and asynchronous Queue Bridge delivery failures are exposed through logs and `/metrics`, not the HTTP response.
 
 ### Required usable fields
 
@@ -61,7 +53,6 @@ The supplied upstream example is structurally OpenRTB 2.5, but has no `device.if
 | `LISTEN_ADDR` | `:8080` | HTTP listener |
 | `QUEUE_BRIDGE_ADDR` | `queue-bridge:50051` | Queue Bridge gRPC endpoint |
 | `QUEUE_TOPIC` | `device` | Queue Bridge topic |
-| `INGRESS_AUTH_TOKEN` | required | Bearer token |
 | `MAX_BODY_BYTES` | `1048576` | Compressed and decoded request-body limit |
 | `QUEUE_DEPTH` | `32768` | Total in-memory admission queue depth |
 | `BATCH_SIZE` | `500` | Messages per Queue Bridge `PushBatch` |
@@ -79,4 +70,3 @@ go test ./... -count=1
 go test ./internal/httpapi -run '^$' -bench BenchmarkIngestOpenRTB -benchtime=3s
 docker build --platform linux/amd64 -t device-ingress:local .
 ```
-# device-ingress
